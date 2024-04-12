@@ -38,6 +38,7 @@ var (
 	defaultTritonKeyMaterial  = ""
 	defaultTritonUrl          = ""
 	defaultTritonTags         = ""
+	defaultTritonMetadata     = ""
 
 	// https://docs.joyent.com/public-cloud/instances/virtual-machines/images/linux/debian#debian-8
 	defaultTritonImage       = "debian-8"
@@ -58,6 +59,7 @@ type Driver struct {
 	TritonKeyId              string
 	TritonUrl                string
 	TritonTags               string
+	TritonMetadata           string
 	TritonTLSInsecure        string
 
 	// machine creation parameters
@@ -90,6 +92,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.TritonKeyId = opts.String(flagPrefix + "key-id")
 	d.TritonUrl = opts.String(flagPrefix + "url")
 	d.TritonTags = opts.String(flagPrefix + "tags")
+	d.TritonMetadata = opts.String(flagPrefix + "metadata")
 
 	d.TritonImage = opts.String(flagPrefix + "image")
 	d.TritonPackage = opts.String(flagPrefix + "package")
@@ -189,6 +192,12 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Name:   flagPrefix + "tags",
 			Usage:  "Tags assigned to the VM",
 			Value:  defaultTritonTags,
+		},
+		mcnflag.StringFlag{
+			EnvVar: envPrefix + "METADATA",
+			Name:   flagPrefix + "metadata",
+			Usage:  "Metadata assigned to the VM",
+			Value:  defaultTritonMetadata,
 		},
 	}
 }
@@ -293,6 +302,7 @@ func NewDriver(hostName, storePath string) *Driver {
 		TritonKeyId:        defaultTritonKeyId,
 		TritonUrl:          defaultTritonUrl,
 		TritonTags:         defaultTritonTags,
+		TritonMetadata:     defaultTritonMetadata,
 		TritonTLSInsecure:  defaultTritonTLSInsecure,
 
 		BaseDriver: &drivers.BaseDriver{
@@ -339,11 +349,26 @@ func (d *Driver) Create() error {
 		}
 	}
 
+	// parse out metadata into a map
+	var metadata map[string]string
+	if d.TritonMetadata != "" {
+		metadata = make(map[string]string)
+		splitMetadata := strings.Split(d.TritonMetadata, ",")
+		for _, metadataDefinition := range splitMetadata {
+			definitionSplit := strings.Split(metadataDefinition, "=")
+			if len(definitionSplit) == 2 {
+				// remove leading and trailing whitespace from tag key and value
+				metadata[strings.TrimSpace(definitionSplit[0])] = strings.TrimSpace(definitionSplit[1])
+			}
+		}
+	}
+
 	input := &compute.CreateInstanceInput{
-		Name:    d.MachineName,
-		Image:   d.TritonImage,
-		Package: d.TritonPackage,
-		Tags:    tags,
+		Name:     d.MachineName,
+		Image:    d.TritonImage,
+		Package:  d.TritonPackage,
+		Tags:     tags,
+		Metadata: metadata,
 	}
 	machine, err := c.Instances().Create(context.Background(), input)
 	if err != nil {
