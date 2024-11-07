@@ -38,7 +38,7 @@ var (
 	defaultTritonKeyMaterial  = ""
 	defaultTritonUrl          = ""
 	defaultTritonTags         = ""
-	defaultTritonMetadata     = ""
+	defaultTritonMdata        = ""
 
 	// https://docs.joyent.com/public-cloud/instances/virtual-machines/images/linux/debian#debian-8
 	defaultTritonImage       = "debian-8"
@@ -59,7 +59,7 @@ type Driver struct {
 	TritonKeyId              string
 	TritonUrl                string
 	TritonTags               string
-	TritonMetadata           string
+	TritonMdata              string
 	TritonTLSInsecure        string
 
 	// machine creation parameters
@@ -92,7 +92,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.TritonKeyId = opts.String(flagPrefix + "key-id")
 	d.TritonUrl = opts.String(flagPrefix + "url")
 	d.TritonTags = opts.String(flagPrefix + "tags")
-	d.TritonMetadata = opts.String(flagPrefix + "metadata")
+	d.TritonMdata = opts.String(flagPrefix + "mdata")
 
 	d.TritonImage = opts.String(flagPrefix + "image")
 	d.TritonPackage = opts.String(flagPrefix + "package")
@@ -194,10 +194,10 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Value:  defaultTritonTags,
 		},
 		mcnflag.StringFlag{
-			EnvVar: envPrefix + "METADATA",
-			Name:   flagPrefix + "metadata",
+			EnvVar: envPrefix + "MDATA",
+			Name:   flagPrefix + "mdata",
 			Usage:  "Metadata assigned to the VM",
-			Value:  defaultTritonMetadata,
+			Value:  defaultTritonMdata,
 		},
 	}
 }
@@ -302,7 +302,7 @@ func NewDriver(hostName, storePath string) *Driver {
 		TritonKeyId:        defaultTritonKeyId,
 		TritonUrl:          defaultTritonUrl,
 		TritonTags:         defaultTritonTags,
-		TritonMetadata:     defaultTritonMetadata,
+		TritonMdata:        defaultTritonMdata,
 		TritonTLSInsecure:  defaultTritonTLSInsecure,
 
 		BaseDriver: &drivers.BaseDriver{
@@ -341,7 +341,7 @@ func (d *Driver) Create() error {
 		tags = make(map[string]string)
 		splitTags := strings.Split(d.TritonTags, ",")
 		for _, tagDefinition := range splitTags {
-			definitionSplit := strings.Split(tagDefinition, "=")
+			definitionSplit := strings.SplitN(tagDefinition, "=", 2)
 			if len(definitionSplit) == 2 {
 				// remove leading and trailing whitespace from tag key and value
 				tags[strings.TrimSpace(definitionSplit[0])] = strings.TrimSpace(definitionSplit[1])
@@ -351,11 +351,11 @@ func (d *Driver) Create() error {
 
 	// parse out metadata into a map
 	var metadata map[string]string
-	if d.TritonMetadata != "" {
+	if d.TritonMdata != "" {
 		metadata = make(map[string]string)
-		splitMetadata := strings.Split(d.TritonMetadata, ",")
+		splitMetadata := strings.Split(d.TritonMdata, ",")
 		for _, metadataDefinition := range splitMetadata {
-			definitionSplit := strings.Split(metadataDefinition, "=")
+			definitionSplit := strings.SplitN(metadataDefinition, "=", 2)
 			if len(definitionSplit) == 2 {
 				// remove leading and trailing whitespace from tag key and value
 				metadata[strings.TrimSpace(definitionSplit[0])] = strings.TrimSpace(definitionSplit[1])
