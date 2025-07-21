@@ -6,7 +6,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -18,9 +17,9 @@ import (
 	"github.com/docker/machine/libmachine/mcnutils"
 	"github.com/docker/machine/libmachine/state"
 
-	"github.com/joyent/triton-go"
-	auth "github.com/joyent/triton-go/authentication"
-	"github.com/joyent/triton-go/compute"
+	"github.com/TritonDataCenter/triton-go"
+	auth "github.com/TritonDataCenter/triton-go/authentication"
+	"github.com/TritonDataCenter/triton-go/compute"
 )
 
 const (
@@ -207,12 +206,21 @@ func (d Driver) client() (*compute.ComputeClient, error) {
 	var err error
 
 	if d.TritonKeyMaterialDecoded != "" {
-		signer, err = auth.NewPrivateKeySigner(d.TritonKeyId, []byte(d.TritonKeyMaterialDecoded), d.TritonAccount)
+		signer, err = auth.NewPrivateKeySigner(auth.PrivateKeySignerInput{
+			KeyID:              d.TritonKeyId,
+			PrivateKeyMaterial: []byte(d.TritonKeyMaterialDecoded),
+			AccountName:        d.TritonAccount,
+			Username:           d.TritonAccount,
+		})
 		if err != nil {
 			return nil, fmt.Errorf("error creating SSH private key signer: %s", err)
 		}
 	} else if d.TritonKeyPath == "" {
-		signer, err = auth.NewSSHAgentSigner(d.TritonKeyId, d.TritonAccount)
+		signer, err = auth.NewSSHAgentSigner(auth.SSHAgentSignerInput{
+			KeyID:       d.TritonKeyId,
+			AccountName: d.TritonAccount,
+			Username:    d.TritonAccount,
+		})
 		if err != nil {
 			return nil, fmt.Errorf("error Creating SSH Agent Signer: %s", err)
 		}
@@ -223,7 +231,7 @@ func (d Driver) client() (*compute.ComputeClient, error) {
 		}
 
 		var keyBytes []byte
-		keyBytes, err = ioutil.ReadFile(d.TritonKeyPath)
+		keyBytes, err = os.ReadFile(d.TritonKeyPath)
 		if err != nil {
 			return nil, fmt.Errorf("error reading key material from %s: %s",
 				d.TritonKeyPath, err)
@@ -240,7 +248,12 @@ func (d Driver) client() (*compute.ComputeClient, error) {
 				d.TritonKeyPath)
 		}
 
-		signer, err = auth.NewPrivateKeySigner(d.TritonKeyId, []byte(d.TritonKeyPath), d.TritonAccount)
+		signer, err = auth.NewPrivateKeySigner(auth.PrivateKeySignerInput{
+			KeyID:              d.TritonKeyId,
+			PrivateKeyMaterial: keyBytes,
+			AccountName:        d.TritonAccount,
+			Username:           d.TritonAccount,
+		})
 		if err != nil {
 			return nil, fmt.Errorf("error creating SSH private key signer: %s", err)
 		}
@@ -412,7 +425,7 @@ func (d *Driver) createSSHKey() error {
 	return nil
 }
 
-// https://github.com/joyent/node-triton/blob/aeed6d91922ea117a42eac0cef4a3df67fbfed2f/lib/common.js#L306
+// https://github.com/TritonDataCenter/node-triton/blob/aeed6d91922ea117a42eac0cef4a3df67fbfed2f/lib/common.js#L306
 func uuidToShortId(s string) string {
 	return strings.SplitN(s, "-", 2)[0]
 }
@@ -439,7 +452,7 @@ func (d *Driver) PreCreateCheck() error {
 	if err != nil {
 		// apparently isn't a valid ID, but might be a name like "debian-8" (so
 		// let's do a lookup)
-		// https://github.com/joyent/node-triton/blob/aeed6d91922ea117a42eac0cef4a3df67fbfed2f/lib/tritonapi.js#L368
+		// https://github.com/TritonDataCenter/node-triton/blob/aeed6d91922ea117a42eac0cef4a3df67fbfed2f/lib/tritonapi.js#L368
 		nameVersion := strings.SplitN(d.TritonImage, "@", 2)
 		name, version := nameVersion[0], ""
 		if len(nameVersion) == 2 {
@@ -582,7 +595,7 @@ func (d *Driver) GetState() (state.State, error) {
 		return state.Error, err
 	}
 
-	// https://github.com/joyent/smartos-live/blob/master/src/vm/man/vmadm.1m.md#vm-states
+	// https://github.com/TritonDataCenter/smartos-live/blob/master/src/vm/man/vmadm.1m.md#vm-states
 	switch machine.State {
 	case "configured", "provisioning":
 		return state.Starting, nil

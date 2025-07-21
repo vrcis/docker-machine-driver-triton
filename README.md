@@ -11,7 +11,7 @@ You need a Triton account to use this driver. See [this page](https://www.joyent
 ## Installation from source
 To get the code and compile the binary, run:
 ```bash
-go get -u github.com/joyent/docker-machine-driver-triton
+go get -u github.com/TritonDataCenter/docker-machine-driver-triton
 ```
 
 Then put the driver in a directory filled in your PATH environment variable or run:
