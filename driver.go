@@ -205,12 +205,19 @@ func (d Driver) client() (*compute.ComputeClient, error) {
 	var signer auth.Signer
 	var err error
 
+	var username string
+	if d.TritonActAsAccount != "" {
+		username = d.TritonActAsAccount
+	} else {
+		username = d.TritonAccount
+	}
+
 	if d.TritonKeyMaterialDecoded != "" {
 		signer, err = auth.NewPrivateKeySigner(auth.PrivateKeySignerInput{
 			KeyID:              d.TritonKeyId,
 			PrivateKeyMaterial: []byte(d.TritonKeyMaterialDecoded),
 			AccountName:        d.TritonAccount,
-			Username:           d.TritonAccount,
+			Username:           username,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("error creating SSH private key signer: %s", err)
@@ -219,7 +226,7 @@ func (d Driver) client() (*compute.ComputeClient, error) {
 		signer, err = auth.NewSSHAgentSigner(auth.SSHAgentSignerInput{
 			KeyID:       d.TritonKeyId,
 			AccountName: d.TritonAccount,
-			Username:    d.TritonAccount,
+			Username:    username,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("error Creating SSH Agent Signer: %s", err)
@@ -252,21 +259,16 @@ func (d Driver) client() (*compute.ComputeClient, error) {
 			KeyID:              d.TritonKeyId,
 			PrivateKeyMaterial: keyBytes,
 			AccountName:        d.TritonAccount,
-			Username:           d.TritonAccount,
+			Username:           username,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("error creating SSH private key signer: %s", err)
 		}
 	}
 
-	var authAccount = d.TritonActAsAccount
-	if authAccount == "" {
-		authAccount = d.TritonAccount
-	}
-
 	config := &triton.ClientConfig{
 		TritonURL:   d.TritonUrl,
-		AccountName: authAccount,
+		AccountName: username,
 		Signers:     []auth.Signer{signer},
 	}
 
